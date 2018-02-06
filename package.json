@@ -4,6 +4,7 @@
   "description": "pack it swear jar",
   "main": "swearjar.js",
   "dependencies": {
+    "mongodb": "^3.0.2",
     "profanity-util": "^0.2.0",
     "slackbots": "^1.1.0"
   },
