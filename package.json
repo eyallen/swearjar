@@ -1,0 +1,24 @@
+{
+  "name": "swearjar",
+  "version": "1.0.0",
+  "description": "pack it swear jar",
+  "main": "swearjar.js",
+  "dependencies": {
+    "profanity-util": "^0.2.0",
+    "slackbots": "^1.1.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eyallen/swearjar.git"
+  },
+  "author": "eyallen",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/eyallen/swearjar/issues"
+  },
+  "homepage": "https://github.com/eyallen/swearjar#readme"
+}
