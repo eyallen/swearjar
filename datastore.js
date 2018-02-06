@@ -15,7 +15,81 @@ var DataStore = function Constructor(settings) {
     this.connectionString =  "mongodb://" + this.dbUser + ":" + encodeURIComponent(this.dbPass) + "@" + this.dbHost + ":10255/?ssl=true&replicaSet=globaldb";
 };
 
-// TODO: This is dumb, I should really just pre-populate the word list
+DataStore.prototype.populateUserList = function(users) {
+    var dbName = this.dbName;
+    var userCollection = this.userCollection;
+
+    MongoClient.connect(this.connectionString, function(err,client) {
+        if (err) return;
+
+        var db = client.db(dbName);
+        for (var i = 0; i < users.length; i++) {
+            var user = users[i];
+            if (!user || !user.id) continue;
+
+            db.collection(userCollection).updateOne(
+                { user: user.id },
+                {
+                    $setOnInsert: { user: user.id, word_counts: {} }
+                },
+                { upsert: true }
+            );
+        }
+
+        client.close();
+    });
+};
+
+DataStore.prototype.populateWordList = function(words) {
+    var dbName = this.dbName;
+    var wordCollection = this.wordCollection;
+
+    MongoClient.connect(this.connectionString, function(err,client) {
+        if (err) return;
+
+        var db = client.db(dbName);
+        for (var i = 0; i < words.length; i++) {
+            var word = words[i];
+            if (!word) continue;
+
+            db.collection(wordCollection).updateOne(
+                { text: word },
+                {
+                    $setOnInsert: { text: word, count: 0 }
+                },
+                { upsert: true }
+            );
+        }
+
+        client.close();
+    });
+};
+
+DataStore.prototype.populateChannelList = function(channels) {
+    var dbName = this.dbName;
+    var channelCollection = this.channelCollection;
+
+    MongoClient.connect(this.connectionString, function(err,client) {
+        if (err) return;
+
+        var db = client.db(dbName);
+        for (var i = 0; i < channels.length; i++) {
+            var channel = channels[i];
+            if (!channel || !channel.id) continue;
+
+            db.collection(channelCollection).updateOne(
+                { channel: channel.id },
+                {
+                    $setOnInsert: { channel: channel.id,  word_counts: {} }
+                },
+                { upsert: true }
+            );
+        }
+
+        client.close();
+    });
+};
+
 DataStore.prototype.updateWordList = function(word) {
     var dbName = this.dbName;
     var wordCollection = this.wordCollection;
@@ -30,7 +104,7 @@ DataStore.prototype.updateWordList = function(word) {
                 $inc: { count: 1},
                 $setOnInsert: { text: word, count: 1 }
             },
-            {upsert: true }
+            { upsert: true }
         );
 
         client.close();
@@ -38,11 +112,65 @@ DataStore.prototype.updateWordList = function(word) {
 };
 
 DataStore.prototype.updateUserTotals = function(user, word) {
-    
+    var dbName = this.dbName;
+    var wordCollection = this.wordCollection;
+    var userCollection = this.userCollection;
+
+    MongoClient.connect(this.connectionString, function(err,client) {
+        if (err) return;
+
+        var db = client.db(dbName);
+        db.collection(wordCollection).findOne({ text: word }, function(err, wordDoc) {
+            if (!err && wordDoc && wordDoc._id) {
+                var wordCountProp = "word_counts." + wordDoc._id;
+                
+                var update = {};
+                update[wordCountProp] = 1;
+
+                db.collection(userCollection).updateOne(
+                    {
+                        user: user
+                    },
+                    {
+                        $inc: update,
+                    }
+                );
+            }
+
+            client.close();
+        })
+    });
 };
 
 DataStore.prototype.updateChannelTotals = function(channel, word) {
+    var dbName = this.dbName;
+    var wordCollection = this.wordCollection;
+    var channelCollection = this.channelCollection;
 
+    MongoClient.connect(this.connectionString, function(err,client) {
+        if (err) return;
+
+        var db = client.db(dbName);
+        db.collection(wordCollection).findOne({ text: word }, function(err, wordDoc) {
+            if (!err && wordDoc && wordDoc._id) {
+                var wordCountProp = "word_counts." + wordDoc._id;
+                
+                var update = {};
+                update[wordCountProp] = 1;
+
+                db.collection(channelCollection).updateOne(
+                    {
+                        channel: channel
+                    },
+                    {
+                        $inc: update,
+                    }
+                );
+            }
+
+            client.close();
+        })
+    });
 };
 
 DataStore.prototype.updateSwearEvents = function(user, channel, word) {
@@ -67,7 +195,7 @@ DataStore.prototype.updateSwearEvents = function(user, channel, word) {
             }
 
             client.close();
-        })
+        });
     });
 };
 
