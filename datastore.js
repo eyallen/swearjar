@@ -1,5 +1,6 @@
 var MongoClient = require('mongodb').MongoClient;
 
+// TODO: This should be an ES6 class
 var DataStore = function Constructor(settings) {
     this.settings = settings || {};
     this.dbName = this.settings.dbName || "swear_jar";
@@ -13,6 +14,20 @@ var DataStore = function Constructor(settings) {
     this.eventsCollection = this.settings.eventsCollection || "events";
 
     this.connectionString =  "mongodb://" + this.dbUser + ":" + encodeURIComponent(this.dbPass) + "@" + this.dbHost + ":10255/?ssl=true&replicaSet=globaldb";
+};
+
+DataStore.prototype.getTopSwearWords = function(count) {
+    var dbName = this.dbName;
+    var wordCollection = this.wordCollection;
+
+    MongoClient.connect(this.connectionString, function(err,client) {
+        if (err) return;
+
+        var db = client.db(dbName);
+        db.collection(wordCollection).find({count: {$gt: 0}}).sort({ count: -1}).limit(count).toArray().then(function(result) {
+
+        });
+    });
 };
 
 DataStore.prototype.populateUserList = function(users) {

@@ -11,7 +11,7 @@ class SwearJar extends SlackBot {
 
         this.settings = settings || {};
         this.settings.token = this.settings.token || process.env.BOT_API_KEY;
-        this.settings.name = this.settings.name || "Swear Jar";
+        this.settings.name = this.settings.name || "SwearJar";
         this.user = null;
 
         this.botStore = new DataStore();
@@ -20,6 +20,17 @@ class SwearJar extends SlackBot {
     run() {
         this.on('start', this._onStart);
         this.on('message', this._onMessage);
+    }
+
+    printStats(channel) {
+        var stats = "Hey there potty mouths.\n";
+        stats += "Most popuplar swear word: \n";
+        stats += "Biggest potty mouth: \n";
+        stats += "Channel with the worst language: \n";
+
+        this.botStore.getTopSwearWords(5);
+
+        this.postMessage(channel, stats);
     }
 
     _isChatMessage(message) {
@@ -33,6 +44,10 @@ class SwearJar extends SlackBot {
 
     _isFromSwearJar(message) {
         return message.user === this.user.id;
+    }
+
+    _isSwearJarMention(message) {
+        return message.text.includes("@" + this.user.id);
     }
 
     _getNaughtyWords(message) {
@@ -79,22 +94,30 @@ class SwearJar extends SlackBot {
         this.botStore.populateWordList(Swearwords);
     }
 
-    _onMessage(data) {
-        console.log(data);
+    _onMessage(message) {
+        console.log(message);
 
-        if (this._isChatMessage(data) && 
-            this._isChannelConversation(data) && 
-            !this._isFromSwearJar(data)) {
+        if (!this._isChatMessage(message) ||
+            !this._isChannelConversation(message))
+        {
+            return;
+        }
 
-            var naughty = this._getNaughtyWords(data);
+        if (this._isSwearJarMention(message)) {
+            this.printStats(message.channel);
+        }
+
+        if (!this._isFromSwearJar(message)) {
+
+            var naughty = this._getNaughtyWords(message);
             if (naughty.length > 0) {
                 for(var i = 0; i < naughty.length; i++) {
                     // TODO: If we were smart, we could totally just push a swear event and then react accordinly
                     // on the server. But yeah... I'm not doing that.
                     this._updateWordList(naughty[i]);
-                    this._updateEvents(data.user, data.channel, naughty[i]);
-                    this._updateUserTotals(data.user, naughty[i]);
-                    this._updateChannelTotals(data.channel, naughty[i]);
+                    this._updateEvents(message.user, message.channel, naughty[i]);
+                    this._updateUserTotals(message.user, naughty[i]);
+                    this._updateChannelTotals(message.channel, naughty[i]);
                 }
             }
         }
