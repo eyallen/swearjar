@@ -23,14 +23,21 @@ class SwearJar extends SlackBot {
     }
 
     printStats(channel) {
-        var stats = "Hey there potty mouths.\n";
-        stats += "Most popuplar swear word: \n";
-        stats += "Biggest potty mouth: \n";
-        stats += "Channel with the worst language: \n";
+        var topWords = this.botStore.getTopSwearWords(5);
+        var topWordsByChannel = this.botStore.getTopSwearWordsByChannel(channel, 5);
+        topWords.then((results)=>{
 
-        this.botStore.getTopSwearWords(5);
+            /*
+            var stats = "Hey there potty mouths.\n";
+            stats += "Most popuplar swear word: \n";
+            stats += "Biggest potty mouth: \n";
+            stats += "Channel with the worst language: \n";*/
 
-        this.postMessage(channel, stats);
+            this.postMessage(channel, results);
+        });
+        topWordsByChannel.then((results) =>{
+
+        });
     }
 
     _isChatMessage(message) {
