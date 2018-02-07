@@ -10,8 +10,6 @@ class DataStore {
         this.dbPass = this.settings.dbPass || process.env.DB_PASS;
 
         this.wordCollection = this.settings.wordCollection || "bad_words";
-        this.userCollection = this.settings.userCollection || "user_totals";
-        this.channelCollection = this.settings.channelCollection || "channel_totals";
         this.eventsCollection = this.settings.eventsCollection || "events";
 
         this.connectionString =  "mongodb://" + this.dbUser + ":" + encodeURIComponent(this.dbPass) + "@" + this.dbHost + ":10255/?ssl=true&replicaSet=globaldb";
@@ -29,38 +27,35 @@ class DataStore {
 
     getTopSwearWordsByChannel(channel, count) {
         var dbName = this.dbName;
-        var channelCollection = this.channelCollection;
+        var wordCollection = this.wordCollection;
 
         return MongoClient.connect(this.connectionString).then((client) => {
             var db = client.db(dbName);
-            return db.collection(channelCollection).find({channel: channel}).project({word_counts: 1}).toArray();
-        }).then((result) => {
+            
+            var query = {};
+            query["channel_count." + channel] = { $gt: 0 }
 
+            var sort = {};
+            sort["channel_count." + channel] = -1;
+
+            return db.collection(wordCollection).find(query).sort(sort).limit(count).toArray();
         });
     }
 
-    populateUserList(users) {
+    getTopSwearWordsByUser(user, count) {
         var dbName = this.dbName;
-        var userCollection = this.userCollection;
+        var wordCollection = this.wordCollection;
 
-        MongoClient.connect(this.connectionString, function(err,client) {
-            if (err) return;
-
+        return MongoClient.connect(this.connectionString).then((client) => {
             var db = client.db(dbName);
-            for (var i = 0; i < users.length; i++) {
-                var user = users[i];
-                if (!user || !user.id) continue;
+            
+            var query = {};
+            query["user_count." + user] = { $gt: 0 }
 
-                db.collection(userCollection).updateOne(
-                    { user: user.id },
-                    {
-                        $setOnInsert: { user: user.id, word_counts: {} }
-                    },
-                    { upsert: true }
-                );
-            }
+            var sort = {};
+            sort["user_count." + user] = -1;
 
-            client.close();
+            return db.collection(wordCollection).find(query).sort(sort).limit(count).toArray();
         });
     }
 
@@ -79,7 +74,7 @@ class DataStore {
                 db.collection(wordCollection).updateOne(
                     { text: word },
                     {
-                        $setOnInsert: { text: word, count: 0 }
+                        $setOnInsert: { text: word, count: 0, channel_count: {}, user_count: {} }
                     },
                     { upsert: true }
                 );
@@ -89,32 +84,7 @@ class DataStore {
         });
     }
 
-    populateChannelList(channels) {
-        var dbName = this.dbName;
-        var channelCollection = this.channelCollection;
-
-        MongoClient.connect(this.connectionString, function(err,client) {
-            if (err) return;
-
-            var db = client.db(dbName);
-            for (var i = 0; i < channels.length; i++) {
-                var channel = channels[i];
-                if (!channel || !channel.id) continue;
-
-                db.collection(channelCollection).updateOne(
-                    { channel: channel.id },
-                    {
-                        $setOnInsert: { channel: channel.id,  word_counts: {} }
-                    },
-                    { upsert: true }
-                );
-            }
-
-            client.close();
-        });
-    }
-
-    updateWordList(word) {
+    updateWordList(user, channel, word) {
         var dbName = this.dbName;
         var wordCollection = this.wordCollection;
 
@@ -122,78 +92,19 @@ class DataStore {
             if (err) return;
 
             var db = client.db(dbName);
+
+            var update = { count: 1 };
+            update["user_count." + user] = 1;
+            update["channel_count." + channel] = 1;
+
             db.collection(wordCollection).updateOne(
                 { text: word },
                 {
-                    $inc: { count: 1},
-                    $setOnInsert: { text: word, count: 1, channel_count: {}, user_count: {} }
-                },
-                { upsert: true }
+                    $inc: update
+                }
             );
 
             client.close();
-        });
-    }
-
-    updateUserTotals(user, word) {
-        var dbName = this.dbName;
-        var wordCollection = this.wordCollection;
-        var userCollection = this.userCollection;
-
-        MongoClient.connect(this.connectionString, function(err,client) {
-            if (err) return;
-
-            var db = client.db(dbName);
-            db.collection(wordCollection).findOne({ text: word }, function(err, wordDoc) {
-                if (!err && wordDoc && wordDoc._id) {
-                    var wordCountProp = "word_counts." + wordDoc._id;
-                    
-                    var update = {};
-                    update[wordCountProp] = 1;
-
-                    db.collection(userCollection).updateOne(
-                        {
-                            user: user
-                        },
-                        {
-                            $inc: update,
-                        }
-                    );
-                }
-
-                client.close();
-            })
-        });
-    }
-
-    updateChannelTotals(channel, word) {
-        var dbName = this.dbName;
-        var wordCollection = this.wordCollection;
-        var channelCollection = this.channelCollection;
-
-        MongoClient.connect(this.connectionString, function(err,client) {
-            if (err) return;
-
-            var db = client.db(dbName);
-            db.collection(wordCollection).findOne({ text: word }, function(err, wordDoc) {
-                if (!err && wordDoc && wordDoc._id) {
-                    var wordCountProp = "word_counts." + wordDoc._id;
-                    
-                    var update = {};
-                    update[wordCountProp] = 1;
-
-                    db.collection(channelCollection).updateOne(
-                        {
-                            channel: channel
-                        },
-                        {
-                            $inc: update,
-                        }
-                    );
-                }
-
-                client.close();
-            })
         });
     }
 
